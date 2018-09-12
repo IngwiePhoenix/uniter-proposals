@@ -1,0 +1,91 @@
+<?uniter // <- Just cause... :)
+
+namespace Example {
+
+import {
+    "$" as function jQuery,
+    "$" as class jQuery
+} from "jquery";
+
+// Should be done by default...
+// However, class names from the local scope are being used, if available
+\XHP\set_element_aliases([
+    "div" => stdElement::class,
+    "p" => stdElement::class
+]);
+
+import class Model from "some-model-lib/model";
+
+class MyElement extends \xhp\stdElement {
+    // Actually, rendering should probably mean, that the element is
+    // either transformed into it's bare string representation, or
+    // into HTML nodes in the DOM.
+    // Setting the renderer should be possible through configuring the VM or something.
+    // The default should be to store a basic structure of tagName, text, attributes,
+    // children, and let an external function handle this.
+
+    /* Object struct:
+    array[
+        {
+            tagName: "foo",
+            text: "...",
+            attrs: {...},
+            children: [
+
+            ]
+        }
+    ] */
+
+    // The renderer is passed this structure and generates either a nice HTML output,
+    // or just transforms it into some kind of string. For instance, you could use this
+    // in order to colourize the CLI.
+
+    // A stdElement is just there to hold the information required.
+    // Additionally, if an element is just being used to subsequently generate
+    // multiple sub-elements, it may become that structure instead.
+
+    public function __construct($text, $attrs, $children) {
+        $this->become((<stdElement tagName="div" className="..." attrs=${attrs} innerText=${text}>
+            ${children}
+        </stdElement>));
+    }
+}
+
+class MyModel extends Model {
+    public function __construct() {
+        // ...
+        jQuery::onLoad(function(){
+            jQuery("body")->addChild($this->render());
+
+            // Alternative 1: Use __JS__
+            __JS__ <$this> {
+                document.body.addChild($this.call("render"));
+            }
+
+            // Alternative 2: Import objects from JS dynamicly.
+            \JS\obtain("document.body")->addChild($this->render());
+
+            // Alternative 3: Always resolve \JS\{$className} with the
+            // global JS scope, if a local member was not found.
+            // After all, this _is_ a dynamic call...
+            // If it returns undefined, throw an exception.
+            \JS\$document->body->addChild($this->render());
+            // vm.install( (global||window)["document"] );
+        });
+    }
+
+    public function makeView() {
+        return (<MyElement>Test</myElement>);
+    }
+}
+
+} // end ns:Example
+
+jQuery(function($window, $document){
+    $m = new \Example\Model();
+    $r = new \XHP\Renderer\HTML();
+    $r->renderInto(
+        $document->querySelect("#main"),
+        $model->makeView()
+    );
+});
